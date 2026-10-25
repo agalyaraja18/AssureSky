@@ -31,11 +31,9 @@ jobs:
           cache: true
 
       - name: Install dependencies
-        working-directory: assuresky
         run: flutter pub get
 
       - name: Build release APK
-        working-directory: assuresky
         run: |
           flutter build apk --release \
             --dart-define=OWM_API_KEY=${{ secrets.OWM_API_KEY }} \
@@ -44,7 +42,7 @@ jobs:
       - name: Rename APK
         run: |
           mkdir -p artifacts
-          cp assuresky/build/app/outputs/flutter-apk/app-release.apk artifacts/AssureSky-android.apk
+          cp build/app/outputs/flutter-apk/app-release.apk artifacts/AssureSky-android.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
@@ -66,11 +64,9 @@ jobs:
           cache: true
 
       - name: Install dependencies
-        working-directory: assuresky
         run: flutter pub get
 
       - name: Build web
-        working-directory: assuresky
         run: |
           flutter build web --release \
             --dart-define=OWM_API_KEY=${{ secrets.OWM_API_KEY }} \
@@ -79,8 +75,8 @@ jobs:
       - name: Zip web bundle
         run: |
           mkdir -p artifacts
-          cd assuresky/build/web
-          zip -r ../../../artifacts/AssureSky-web.zip .
+          cd build/web
+          zip -r ../../artifacts/AssureSky-web.zip .
 
       - name: Upload web artifact
         uses: actions/upload-artifact@v4
