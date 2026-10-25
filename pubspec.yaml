@@ -1,0 +1,48 @@
+name: assuresky
+description: "AssureSky - Know your day; Own your day. A smart weather app with AI-powered advice."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # State management
+  flutter_bloc: ^8.1.6
+  equatable: ^2.0.5
+
+  # Networking
+  dio: ^5.7.0
+
+  # Location
+  geolocator: ^13.0.2
+  geocoding: ^3.0.0
+
+  # Local storage
+  shared_preferences: ^2.3.3
+
+  # UI & Images
+  cached_network_image: ^3.4.1
+
+  # Utilities
+  intl: ^0.19.0
+  url_launcher: ^6.3.1
+  package_info_plus: ^8.1.2
+
+  # In-app web view for reading full articles
+  webview_flutter: ^4.10.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
