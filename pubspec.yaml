@@ -2,7 +2,7 @@ name: assuresky
 description: "AssureSky - Know your day; Own your day. A smart weather app with AI-powered advice."
 publish_to: 'none'
 
-version: 1.0.0+1
+version: 2.0.0+2
 
 environment:
   sdk: ^3.9.2

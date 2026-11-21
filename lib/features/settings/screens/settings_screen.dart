@@ -179,7 +179,7 @@ class SettingsScreen extends StatelessWidget {
                 const SizedBox(height: 24),
                 Center(
                   child: Text(
-                    'AssureSky v1.0.0 · Made with ❤',
+                    'AssureSky v2.0.0 · Made with ❤',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ),

@@ -30,7 +30,7 @@ class AboutScreen extends StatelessWidget {
                         style: theme.textTheme.bodySmall
                             ?.copyWith(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 4),
-                    Text('v1.0.0',
+                    Text('v2.0.0',
                         style: theme.textTheme.bodyMedium
                             ?.copyWith(color: AppColors.accent)),
                     const SizedBox(height: 4),
