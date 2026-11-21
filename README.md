@@ -1,4 +1,4 @@
-﻿<p align="center">
+<p align="center">
   <h1 align="center">AssureSky ☁️</h1>
   <p align="center"><b>Know your day. Own your day.</b></p>
   <p align="center">A weather app with AI Advice powered by Flutter.</p>
@@ -6,9 +6,9 @@
 
 <p align="center">
   <a href="../../releases/latest">
-    <img src="https://img.shields.io/github/v/release/YOUR_USERNAME/AssureSky?label=Download%20APK&logo=android&color=4CAF50" alt="Download APK"/>
+    <img src="https://img.shields.io/github/v/release/agalyaraja18/AssureSky?label=Download%20APK&logo=android&color=4CAF50" alt="Download APK"/>
   </a>
-  <img src="https://img.shields.io/github/actions/workflow/status/YOUR_USERNAME/AssureSky/release.yml?branch=main&label=Build&logo=github-actions" alt="Build Status"/>
+  <img src="https://img.shields.io/github/actions/workflow/status/agalyaraja18/AssureSky/release.yml?branch=main&label=Build&logo=github-actions" alt="Build Status"/>
   <img src="https://img.shields.io/badge/Flutter-3.32-blue?logo=flutter" alt="Flutter"/>
   <img src="https://img.shields.io/badge/Platform-Android%20%7C%20Web%20%7C%20iOS-informational" alt="Platforms"/>
 </p>
@@ -56,7 +56,7 @@
 
 ```bash
 # Clone the repo
-git clone https://github.com/YOUR_USERNAME/AssureSky.git
+git clone https://github.com/agalyaraja18/AssureSky.git
 cd AssureSky/assuresky
 
 # Install dependencies
