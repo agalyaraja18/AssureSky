@@ -34,10 +34,16 @@ jobs:
         run: flutter pub get
 
       - name: Build release APK
+        shell: bash
         run: |
+          set -o pipefail
           flutter build apk --release \
             --dart-define=OWM_API_KEY=${{ secrets.OWM_API_KEY }} \
-            --dart-define=NEWS_API_KEY=${{ secrets.NEWS_API_KEY }}
+            --dart-define=NEWS_API_KEY=${{ secrets.NEWS_API_KEY }} 2>&1 | tee build.log || {
+              # Surface the end of the build log as an annotation on the run.
+              echo "::error title=APK build failed::$(grep -v '^\s*$' build.log | tail -60 | tr '\n' '|' | head -c 6000)"
+              exit 1
+            }
 
       - name: Rename APK
         run: |
