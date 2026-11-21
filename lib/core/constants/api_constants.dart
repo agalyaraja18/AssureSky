@@ -13,45 +13,23 @@ class ApiConstants {
     defaultValue: '', // set via --dart-define or GitHub Actions secret
   );
 
-  // Endpoints
+  // Open-Meteo — free, no API key. Used for the real UV index (current +
+  // hourly) and for worldwide city search.
+  static const String openMeteoBaseUrl = 'https://api.open-meteo.com';
+  static const String openMeteoGeocodingBaseUrl =
+      'https://geocoding-api.open-meteo.com';
+  static const String openMeteoForecast = '/v1/forecast';
+  static const String openMeteoSearch = '/v1/search';
+
+  // OpenWeatherMap endpoints
   static const String currentWeather = '/data/2.5/weather';
   static const String forecast = '/data/2.5/forecast';
   static const String airPollution = '/data/2.5/air_pollution';
-  static const String uvIndex = '/data/2.5/uvi';
   static const String geocoding = '/geo/1.0/direct';
   static const String reverseGeocoding = '/geo/1.0/reverse';
 
-  // Default location (Chennai)
+  // Fallback location when GPS and saved location are both unavailable.
   static const double defaultLat = 13.0827;
   static const double defaultLon = 80.2707;
   static const String defaultCity = 'Chennai';
-
-  // Indian cities list for location search
-  static const List<String> indianCities = [
-    'Chennai',
-    'Mumbai',
-    'Delhi',
-    'Bangalore',
-    'Hyderabad',
-    'Kolkata',
-    'Pune',
-    'Ahmedabad',
-    'Jaipur',
-    'Surat',
-    'Coimbatore',
-    'Madurai',
-    'Visakhapatnam',
-    'Kochi',
-    'Nagpur',
-    'Bhopal',
-    'Lucknow',
-    'Chandigarh',
-    'Guwahati',
-    'Patna',
-    'Indore',
-    'Thane',
-    'Agra',
-    'Varanasi',
-    'Mysuru',
-  ];
 }

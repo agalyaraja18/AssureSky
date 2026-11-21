@@ -5,7 +5,7 @@ import '../../../core/models/current_weather_model.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../../core/utils/unit_converter.dart';
-import '../../../core/utils/weather_icon_helper.dart';
+import '../../../core/widgets/weather_icon.dart';
 import '../../../core/widgets/weather_animation_background.dart';
 import '../../settings/bloc/settings_bloc.dart';
 
@@ -77,10 +77,7 @@ class WeatherDetailsScreen extends StatelessWidget {
                       ),
                       Column(
                         children: [
-                          Text(
-                            WeatherIconHelper.emoji(weather.conditionCode),
-                            style: const TextStyle(fontSize: 64),
-                          ),
+                          WeatherIcon(weather.conditionCode, size: 64),
                           Text(weather.condition,
                               style: theme.textTheme.bodySmall),
                         ],

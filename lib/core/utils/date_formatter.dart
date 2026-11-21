@@ -31,4 +31,8 @@ class DateFormatter {
   }
 
   static String formatMonthDay(DateTime dt) => DateFormat('MMM d').format(dt);
+
+  /// "20 Nov, 2:15 PM" — compact date + time for alert timings.
+  static String formatAlertTime(DateTime dt) =>
+      DateFormat('d MMM, h:mm a').format(dt.toLocal());
 }

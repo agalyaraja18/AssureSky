@@ -1,29 +1,31 @@
 import 'package:dio/dio.dart';
 import '../constants/api_constants.dart';
-import '../models/air_quality_model.dart';
-import '../models/current_weather_model.dart';
-import '../models/forecast_model.dart';
 
+/// Raw network access for weather data.
+///
+/// Every method returns the decoded JSON map rather than a model, so the
+/// repository can both parse it and store it in the offline cache.
 class WeatherService {
-  final Dio _dio;
+  final Dio _owm;
+  final Dio _openMeteo;
 
   WeatherService()
-      : _dio = Dio(BaseOptions(
+      : _owm = Dio(BaseOptions(
           baseUrl: ApiConstants.owmBaseUrl,
           connectTimeout: const Duration(seconds: 10),
           receiveTimeout: const Duration(seconds: 10),
-        )) {
-    _dio.interceptors.add(LogInterceptor(
-      requestBody: false,
-      responseBody: false,
-      requestHeader: false,
-      logPrint: (o) => print('🌐 Dio: $o'),
-    ));
-  }
+        )),
+        _openMeteo = Dio(BaseOptions(
+          baseUrl: ApiConstants.openMeteoBaseUrl,
+          connectTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 10),
+        ));
 
-  Future<CurrentWeatherModel> getCurrentWeather(
-      double lat, double lon) async {
-    final response = await _dio.get(
+  // NOTE: deliberately no request-logging interceptor — it would print the
+  // full URL, including the OpenWeatherMap API key, to the device log.
+
+  Future<Map<String, dynamic>> fetchCurrentJson(double lat, double lon) async {
+    final response = await _owm.get(
       ApiConstants.currentWeather,
       queryParameters: {
         'lat': lat,
@@ -32,11 +34,11 @@ class WeatherService {
         'units': 'metric',
       },
     );
-    return CurrentWeatherModel.fromJson(response.data as Map<String, dynamic>);
+    return response.data as Map<String, dynamic>;
   }
 
-  Future<ForecastModel> getForecast(double lat, double lon) async {
-    final response = await _dio.get(
+  Future<Map<String, dynamic>> fetchForecastJson(double lat, double lon) async {
+    final response = await _owm.get(
       ApiConstants.forecast,
       queryParameters: {
         'lat': lat,
@@ -46,11 +48,12 @@ class WeatherService {
         'cnt': 40, // 5 days × 8 slots (3h each) — free tier max
       },
     );
-    return ForecastModel.fromJson(response.data as Map<String, dynamic>);
+    return response.data as Map<String, dynamic>;
   }
 
-  Future<AirQualityModel> getAirQuality(double lat, double lon) async {
-    final response = await _dio.get(
+  Future<Map<String, dynamic>> fetchAirQualityJson(
+      double lat, double lon) async {
+    final response = await _owm.get(
       ApiConstants.airPollution,
       queryParameters: {
         'lat': lat,
@@ -58,46 +61,41 @@ class WeatherService {
         'appid': ApiConstants.owmApiKey,
       },
     );
-    return AirQualityModel.fromJson(response.data as Map<String, dynamic>);
+    return response.data as Map<String, dynamic>;
   }
 
-  /// Returns UV index for the given coordinates.
-  Future<double> getUvIndex(double lat, double lon) async {
-    try {
-      // UV is included in OneCall API; approximate from forecast data
-      // Using a simple heuristic based on time of day and condition
-      return 0.0;
-    } catch (_) {
-      return 0.0;
-    }
-  }
-
-  Future<List<Map<String, dynamic>>> searchCity(String query) async {
-    final response = await _dio.get(
-      ApiConstants.geocoding,
+  /// Real UV index (current + hourly) and the WMO weather code (used to detect
+  /// hail) from Open-Meteo. Free, no API key. `timezone=GMT` keeps every
+  /// timestamp in UTC so it lines up with any city's forecast hours.
+  /// Seven days of daily highs/lows, conditions and rain chance in the city's
+  /// own timezone (OpenWeatherMap's free forecast only covers ~5 days).
+  Future<Map<String, dynamic>> fetchDailyJson(double lat, double lon) async {
+    final response = await _openMeteo.get(
+      ApiConstants.openMeteoForecast,
       queryParameters: {
-        'q': query,
-        'limit': 5,
-        'appid': ApiConstants.owmApiKey,
+        'latitude': lat,
+        'longitude': lon,
+        'daily':
+            'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max',
+        'forecast_days': 7,
+        'timezone': 'auto',
       },
     );
-    return (response.data as List)
-        .map((e) => e as Map<String, dynamic>)
-        .toList();
+    return response.data as Map<String, dynamic>;
   }
 
-  Future<String> reverseGeocode(double lat, double lon) async {
-    final response = await _dio.get(
-      ApiConstants.reverseGeocoding,
+  Future<Map<String, dynamic>> fetchUvJson(double lat, double lon) async {
+    final response = await _openMeteo.get(
+      ApiConstants.openMeteoForecast,
       queryParameters: {
-        'lat': lat,
-        'lon': lon,
-        'limit': 1,
-        'appid': ApiConstants.owmApiKey,
+        'latitude': lat,
+        'longitude': lon,
+        'current': 'uv_index,weather_code',
+        'hourly': 'uv_index',
+        'forecast_days': 3,
+        'timezone': 'GMT',
       },
     );
-    final list = response.data as List;
-    if (list.isEmpty) return ApiConstants.defaultCity;
-    return list[0]['name'] as String;
+    return response.data as Map<String, dynamic>;
   }
 }

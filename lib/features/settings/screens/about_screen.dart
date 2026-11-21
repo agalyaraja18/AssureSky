@@ -25,6 +25,11 @@ class AboutScreen extends StatelessWidget {
                         style: theme.textTheme.headlineLarge
                             ?.copyWith(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 4),
+                    Text('Know your weather; Own the day!',
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
                     Text('v1.0.0',
                         style: theme.textTheme.bodyMedium
                             ?.copyWith(color: AppColors.accent)),
@@ -91,22 +96,26 @@ const _features = [
   {
     'icon': '🌡️',
     'text':
-        'Real-time temperature, humidity, wind, UV, pressure & AQI'
+        'Live temperature, weather conditions, humidity, wind, UV, visibility, auto pressure and AQI.'
   },
+  {'icon': '🕒', 'text': 'Date, day and time of your location.'},
+  {'icon': '🌅', 'text': 'Sunrise and sunset times for your location.'},
   {
     'icon': '📅',
-    'text': '7-day forecast and full 24-hour hourly breakdown'
+    'text': '7-day forecast and 24-hour hourly weather breakdown.'
   },
+  {'icon': '📰', 'text': 'Live weather news from around the world.'},
   {
-    'icon': '🤖',
-    'text': 'Asky AI advisor — smart tips based on current weather'
+    'icon': '☁️',
+    'text':
+        'Asky - your fluffy cloud mascot who gives you advice tips according to the weather of the day.'
   },
+  {'icon': '⚠️', 'text': 'Official weather alerts with safety tips.'},
+  {'icon': '🌍', 'text': 'Zoomable world weather map with local times.'},
   {
-    'icon': '📰',
-    'text': 'Live weather news from across India and the world'
+    'icon': '📍',
+    'text':
+        'Any city worldwide, with unit settings for temperature, wind and auto pressure.'
   },
-  {
-    'icon': '🌅',
-    'text': 'Sunrise & sunset times for your location'
-  },
+  {'icon': '🎨', 'text': 'Themes that change with the weather.'},
 ];

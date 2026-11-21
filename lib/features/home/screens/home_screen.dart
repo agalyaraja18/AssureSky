@@ -1,20 +1,30 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/models/air_quality_model.dart';
 import '../../../core/models/current_weather_model.dart';
 import '../../../core/services/asky_engine.dart';
 import '../../../core/services/location_service.dart';
+import '../../../core/services/notification_service.dart';
+import '../../../core/services/weather_alert_engine.dart';
 import '../../../core/services/weather_repository.dart';
+import '../../../core/widgets/info_banner.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/theme_bloc.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../../core/utils/unit_converter.dart';
-import '../../../core/utils/weather_icon_helper.dart';
 import '../../../core/widgets/weather_animation_background.dart';
+import '../../../core/widgets/weather_icon.dart';
+import '../../../core/widgets/weather_mascot.dart';
+import '../../alerts/screens/alert_detail_screen.dart';
+import '../../alerts/screens/alerts_screen.dart';
+import '../../alerts/widgets/official_alert_card.dart';
 import '../../asky/screens/asky_screen.dart';
 import '../../forecast/screens/forecast_screen.dart';
+import '../../map/screens/world_map_screen.dart';
 import '../../news/screens/news_screen.dart';
 import '../../settings/bloc/settings_bloc.dart';
+import '../../settings/screens/search_location_screen.dart';
 import '../../settings/screens/settings_screen.dart';
 import '../bloc/home_bloc.dart';
 import 'weather_details_screen.dart';
@@ -44,8 +54,30 @@ class _HomeScreenState extends State<HomeScreen> {
     _settingsBloc = SettingsBloc()..add(SettingsLoaded());
   }
 
+  /// Notification permission is asked only after the first weather load. Asking
+  /// at start-up collides with the location permission dialog (Android allows
+  /// one permission request at a time), which cancelled the location request
+  /// and left the home screen loading forever.
+  bool _askedNotificationPermission = false;
+
+  Future<void> _askNotificationPermission() async {
+    final wasEnabled = await NotificationService.areEnabled();
+    final granted = await NotificationService.requestPermission();
+    // Anything that was due while notifications were blocked is sent now.
+    if (!wasEnabled && granted && mounted) {
+      _homeBloc.add(HomeRefreshRequested());
+    }
+  }
+
+  // Tab order: 0 Home · 1 Forecast · 2 News · 3 Asky · 4 Alerts · 5 Settings
+  static const int _alertsTab = 4;
+
   void _goToAsky() {
     setState(() => _currentIndex = 3);
+  }
+
+  void _goToAlerts() {
+    setState(() => _currentIndex = _alertsTab);
   }
 
   @override
@@ -62,25 +94,42 @@ class _HomeScreenState extends State<HomeScreen> {
         BlocProvider.value(value: _homeBloc),
         BlocProvider.value(value: _settingsBloc),
       ],
-      child: BlocBuilder<ThemeBloc, ThemeState>(
-        builder: (context, themeState) {
-          return Scaffold(
-            backgroundColor: themeState.themeData.scaffoldBackgroundColor,
-            body: WeatherAnimationBackground(
-              child: IndexedStack(
-                index: _currentIndex,
-                children: const [
-                  _HomeTab(),
-                  ForecastScreen(),
-                  NewsScreen(),
-                  AskyScreen(),
-                  SettingsScreen(),
-                ],
-              ),
-            ),
-            bottomNavigationBar: _buildBottomNav(themeState),
-          );
+      // Keep Settings in step with the location Home actually resolved (GPS
+      // fix, chosen city…) so the Settings → Location row is never stale.
+      child: BlocListener<HomeBloc, HomeState>(
+        listenWhen: (previous, current) => current is HomeLoaded,
+        listener: (context, state) {
+          if (state is HomeLoaded) {
+            _settingsBloc
+                .add(LocationChanged(state.cityName, state.lat, state.lon));
+            if (!_askedNotificationPermission) {
+              _askedNotificationPermission = true;
+              unawaited(_askNotificationPermission());
+            }
+          }
         },
+        child: BlocBuilder<ThemeBloc, ThemeState>(
+          builder: (context, themeState) {
+            return Scaffold(
+              backgroundColor: themeState.themeData.scaffoldBackgroundColor,
+              body: WeatherAnimationBackground(
+                child: IndexedStack(
+                  index: _currentIndex,
+                  children: [
+                    const _HomeTab(),
+                    const ForecastScreen(),
+                    const NewsScreen(),
+                    const AskyScreen(),
+                    // Only starts downloading once the tab is first opened.
+                    AlertsScreen(active: _currentIndex == _alertsTab),
+                    const SettingsScreen(),
+                  ],
+                ),
+              ),
+              bottomNavigationBar: _buildBottomNav(themeState),
+            );
+          },
+        ),
       ),
     );
   }
@@ -108,6 +157,10 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icon(Icons.cloud_outlined),
             selectedIcon: Icon(Icons.cloud),
             label: 'Asky'),
+        NavigationDestination(
+            icon: Icon(Icons.warning_amber_outlined),
+            selectedIcon: Icon(Icons.warning_amber),
+            label: 'Alerts'),
         NavigationDestination(
             icon: Icon(Icons.settings_outlined),
             selectedIcon: Icon(Icons.settings),
@@ -217,8 +270,28 @@ class _WeatherView extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Top bar
-                  _TopBar(cityName: state.cityName),
+                  _TopBar(
+                    cityName: state.cityName,
+                    isGps: state.locationSource == LocationSource.gps,
+                    onTap: () => _openLocationSearch(context),
+                    onMapTap: () => _openWorldMap(context, state),
+                  ),
                   const SizedBox(height: 16),
+
+                  // Status banners
+                  if (state.fromCache) ...[
+                    OfflineBanner(cachedAt: state.cachedAt),
+                    const SizedBox(height: 12),
+                  ],
+                  if (state.locationSource == LocationSource.lastKnown ||
+                      state.locationSource == LocationSource.fallback) ...[
+                    const InfoBanner(
+                      icon: Icons.location_disabled,
+                      text:
+                          'GPS unavailable — showing your last known location. Tap the city to choose another.',
+                    ),
+                    const SizedBox(height: 12),
+                  ],
 
                   // Main weather card
                   _MainWeatherCard(
@@ -237,8 +310,18 @@ class _WeatherView extends StatelessWidget {
                   _TimeDateRow(weather: weather, theme: theme),
                   const SizedBox(height: 12),
 
-                  // Sunrise / Sunset
-                  _SunriseSunsetCard(weather: weather, theme: theme),
+                  // Asky mascot: sleeps at night, reacts to the weather by day
+                  WeatherMascotCard(
+                    mood: mascotMoodFor(
+                      code: weather.conditionCode,
+                      tempC: weather.temp,
+                      windKmh: weather.windSpeed,
+                      visibilityMeters: weather.visibility,
+                      humidity: weather.humidity,
+                      hour: weather.cityNow.hour,
+                      isHail: state.hasHail,
+                    ),
+                  ),
                   const SizedBox(height: 12),
 
                   // Asky banner
@@ -251,6 +334,19 @@ class _WeatherView extends StatelessWidget {
                           ?._goToAsky();
                     },
                   ),
+                  const SizedBox(height: 12),
+
+                  // Sunrise / Sunset
+                  _SunriseSunsetCard(weather: weather, theme: theme),
+                  const SizedBox(height: 12),
+
+                  // Weather alerts for the user's location (below Asky)
+                  _LocationAlertsSection(
+                    state: state,
+                    onSeeAll: () => context
+                        .findAncestorStateOfType<_HomeScreenState>()
+                        ?._goToAlerts(),
+                  ),
                   const SizedBox(height: 24),
                 ],
               ),
@@ -262,9 +358,46 @@ class _WeatherView extends StatelessWidget {
   }
 }
 
+/// Opens the world city search from the home screen.
+void _openLocationSearch(BuildContext context) {
+  Navigator.of(context).push(MaterialPageRoute(
+    builder: (_) => MultiBlocProvider(
+      providers: [
+        BlocProvider.value(value: context.read<SettingsBloc>()),
+        BlocProvider.value(value: context.read<HomeBloc>()),
+      ],
+      child: const SearchLocationScreen(),
+    ),
+  ));
+}
+
+/// Opens the zoomable world weather map centred on the current city.
+void _openWorldMap(BuildContext context, HomeLoaded state) {
+  Navigator.of(context).push(MaterialPageRoute(
+    builder: (_) => MultiBlocProvider(
+      providers: [
+        BlocProvider.value(value: context.read<SettingsBloc>()),
+        BlocProvider.value(value: context.read<HomeBloc>()),
+      ],
+      child: WorldMapScreen(
+        currentCity: state.cityName,
+        currentLat: state.lat,
+        currentLon: state.lon,
+      ),
+    ),
+  ));
+}
+
 class _TopBar extends StatelessWidget {
   final String cityName;
-  const _TopBar({required this.cityName});
+  final bool isGps;
+  final VoidCallback onTap;
+  final VoidCallback onMapTap;
+  const _TopBar(
+      {required this.cityName,
+      required this.isGps,
+      required this.onTap,
+      required this.onMapTap});
 
   @override
   Widget build(BuildContext context) {
@@ -282,16 +415,127 @@ class _TopBar extends StatelessWidget {
                 style: theme.textTheme.bodySmall),
           ],
         ),
-        Row(
+        // Globe button (world weather map) + tap the city to switch place.
+        Flexible(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                tooltip: 'World weather map',
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.public, color: AppColors.accent),
+                onPressed: onMapTap,
+              ),
+              Flexible(child: _cityButton(theme)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _cityButton(ThemeData theme) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.location_on,
+            Icon(isGps ? Icons.my_location : Icons.location_on,
                 color: AppColors.accent, size: 16),
             const SizedBox(width: 4),
-            Text(cityName,
-                style: theme.textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w600)),
+            Flexible(
+              child: Text(cityName,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w600)),
+            ),
+            Icon(Icons.arrow_drop_down,
+                color: theme.textTheme.bodySmall?.color),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Stack of weather alert cards, most severe first.
+class _AlertsSection extends StatelessWidget {
+  final List<WeatherAlert> alerts;
+  const _AlertsSection({required this.alerts});
+
+  static Color _color(AlertSeverity s) {
+    switch (s) {
+      case AlertSeverity.severe:
+        return AppColors.red;
+      case AlertSeverity.warning:
+        return AppColors.orange;
+      case AlertSeverity.advisory:
+        return AppColors.yellow;
+    }
+  }
+
+  static String _label(AlertSeverity s) {
+    switch (s) {
+      case AlertSeverity.severe:
+        return 'SEVERE';
+      case AlertSeverity.warning:
+        return 'WARNING';
+      case AlertSeverity.advisory:
+        return 'ADVISORY';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      children: [
+        for (final alert in alerts)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: theme.cardColor,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                    color: _color(alert.severity).withValues(alpha: 0.8),
+                    width: 1.5),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(alert.icon, style: const TextStyle(fontSize: 28)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _label(alert.severity),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: _color(alert.severity),
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.8,
+                            fontSize: 10,
+                          ),
+                        ),
+                        Text(alert.title,
+                            style: theme.textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 2),
+                        Text(alert.message, style: theme.textTheme.bodySmall),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -340,10 +584,8 @@ class _MainWeatherCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                Text(
-                  WeatherIconHelper.emoji(weather.conditionCode),
-                  style: const TextStyle(fontSize: 72),
-                ),
+                WeatherIcon(weather.conditionCode,
+                    size: 72, isNight: weather.isNight),
               ],
             ),
             const SizedBox(height: 16),
@@ -478,7 +720,8 @@ class _TimeDateRow extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(DateFormatter.formatTime(DateTime.now()),
+                      // Time in the *city shown*, not the phone's timezone.
+                      Text(DateFormatter.formatTime(weather.cityNow),
                           style: theme.textTheme.titleMedium
                               ?.copyWith(fontWeight: FontWeight.bold)),
                       Text('Current Time',
@@ -588,7 +831,7 @@ class _AskyBanner extends StatelessWidget {
               children: [
                 const Text('🌤️', style: TextStyle(fontSize: 24)),
                 const SizedBox(width: 8),
-                Text('AI WEATHER ADVISOR',
+                Text('Asky - AI Weather Advisor',
                     style: theme.textTheme.bodySmall?.copyWith(
                         fontWeight: FontWeight.bold,
                         letterSpacing: 0.8,
@@ -609,6 +852,123 @@ class _AskyBanner extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// "Weather alerts · {city}" — official alerts that apply to the user's
+/// location, followed by warnings derived from the live conditions.
+class _LocationAlertsSection extends StatelessWidget {
+  final HomeLoaded state;
+  final VoidCallback onSeeAll;
+  const _LocationAlertsSection({required this.state, required this.onSeeAll});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final official = state.officialAlerts;
+    final conditions = state.alerts;
+    final hasAny = official.isNotEmpty || conditions.isNotEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded,
+                color: AppColors.accent, size: 20),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                'Weather alerts · ${state.cityName}',
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.bold),
+              ),
+            ),
+            TextButton(
+              onPressed: onSeeAll,
+              style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 6)),
+              child: const Text('See all →'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+
+        // Official alert lookup in progress
+        if (!state.officialAlertsLoaded)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              children: [
+                const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: AppColors.accent),
+                ),
+                const SizedBox(width: 8),
+                Text('Checking official alerts…',
+                    style: theme.textTheme.bodySmall),
+              ],
+            ),
+          ),
+
+        // Official alerts affecting this location
+        for (final alert in official)
+          OfficialAlertCard(
+            alert: alert,
+            compact: true,
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => AlertDetailScreen(alert: alert),
+            )),
+          ),
+
+        // Warnings derived from the live readings
+        if (conditions.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.only(top: 2, bottom: 6),
+            child: Text('Based on current conditions',
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(fontWeight: FontWeight.w600)),
+          ),
+          _AlertsSection(alerts: conditions),
+        ],
+
+        // All clear
+        if (!hasAny && state.officialAlertsLoaded)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                children: [
+                  const Text('✅', style: TextStyle(fontSize: 26)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('No active weather alerts for ${state.cityName}',
+                            style: theme.textTheme.titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w600)),
+                        if (state.officialAlertsFailed.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(
+                              'Some alert sources couldn\'t be reached right now.',
+                              style: theme.textTheme.bodySmall,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

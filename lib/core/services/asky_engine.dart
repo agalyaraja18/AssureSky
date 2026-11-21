@@ -1,3 +1,5 @@
+import '../utils/weather_classifier.dart';
+
 class AskyTip {
   final String icon; // emoji icon
   final String text;
@@ -17,6 +19,9 @@ class WeatherInput {
   final int aqi; // 0–500 scale
   final int humidity;
   final String timeOfDay; // morning, afternoon, evening, night
+  final double windKmh;
+  final bool isHail;
+  final int visibilityMeters;
 
   const WeatherInput({
     required this.conditionCode,
@@ -25,12 +30,77 @@ class WeatherInput {
     required this.aqi,
     required this.humidity,
     required this.timeOfDay,
+    this.windKmh = 0,
+    this.isHail = false,
+    this.visibilityMeters = 10000,
   });
 }
 
 class AskyEngine {
   static AskyResult getTips(WeatherInput input) {
-    // Priority order: AQI > Snow/Fog > Rain > Hot&Sunny > Warm&Sunny > Cold > Cloudy
+    // Priority order: life-threatening (tornado/cyclone/hail/thunderstorm) >
+    // AQI > Fog > Snow/other low-visibility > Rain > Drizzle > Hot&Sunny >
+    // Warm&Sunny > Cold > Cloudy
+
+    // Rule 0a: Tornado
+    if (WeatherClassifier.isTornado(input.conditionCode)) {
+      return const AskyResult(
+        primaryAdvice:
+            'Tornado conditions! Take shelter immediately and stay away from windows.',
+        tips: [
+          AskyTip(icon: '🏠', text: 'Go to the lowest floor, in an interior room'),
+          AskyTip(icon: '🪟', text: 'Stay away from windows and glass'),
+          AskyTip(icon: '🚗', text: 'Do not try to outrun it in a vehicle'),
+          AskyTip(icon: '📻', text: 'Follow official local alerts and instructions'),
+          AskyTip(icon: '🔋', text: 'Keep your phone charged and a torch ready'),
+        ],
+      );
+    }
+
+    // Rule 0b: Cyclone / hurricane-force storm
+    if (WeatherClassifier.isCyclone(input.conditionCode, input.windKmh)) {
+      return const AskyResult(
+        primaryAdvice:
+            'Cyclone-force winds and rain. Stay indoors and avoid all travel.',
+        tips: [
+          AskyTip(icon: '🏠', text: 'Stay indoors, away from windows'),
+          AskyTip(icon: '🚫', text: 'Avoid the coast, rivers and low-lying areas'),
+          AskyTip(icon: '🔦', text: 'Keep torches, water and essentials ready'),
+          AskyTip(icon: '🔌', text: 'Unplug electronics to avoid surge damage'),
+          AskyTip(icon: '📻', text: 'Follow official cyclone warnings'),
+        ],
+      );
+    }
+
+    // Rule 0c: Hail
+    if (input.isHail) {
+      return const AskyResult(
+        primaryAdvice:
+            'Hailstorm! Get under cover — hail can hurt people and damage cars.',
+        tips: [
+          AskyTip(icon: '🏠', text: 'Shelter indoors until it passes'),
+          AskyTip(icon: '🚗', text: 'Move your vehicle under cover if you can'),
+          AskyTip(icon: '🪟', text: 'Stay away from windows and skylights'),
+          AskyTip(icon: '🧢', text: 'If caught outside, protect your head'),
+          AskyTip(icon: '🌳', text: 'Do not shelter under trees'),
+        ],
+      );
+    }
+
+    // Rule 0d: Thunderstorm
+    if (WeatherClassifier.isThunderstorm(input.conditionCode)) {
+      return const AskyResult(
+        primaryAdvice:
+            'Thunderstorm in the area. Stay indoors and away from open ground.',
+        tips: [
+          AskyTip(icon: '🏠', text: 'Stay indoors until the storm passes'),
+          AskyTip(icon: '⚡', text: 'Avoid open fields, hilltops and tall trees'),
+          AskyTip(icon: '🔌', text: 'Unplug sensitive electronics'),
+          AskyTip(icon: '🚿', text: 'Avoid showers and taps during lightning'),
+          AskyTip(icon: '☂️', text: 'An umbrella will not protect you from lightning'),
+        ],
+      );
+    }
 
     // Rule 1: Hazardous AQI (> 150)
     if (input.aqi > 150) {
@@ -47,7 +117,51 @@ class AskyEngine {
       );
     }
 
-    // Rule 2: Snowy or Foggy (600–781)
+    // Rule 2a: Fog / mist / haze / very low visibility
+    if (WeatherClassifier.isFog(input.conditionCode, input.visibilityMeters)) {
+      return const AskyResult(
+        primaryAdvice:
+            'Foggy with low visibility. Drive slowly and keep your lights on.',
+        tips: [
+          AskyTip(icon: '🚗', text: 'Use low-beam or fog lights, not high beams'),
+          AskyTip(icon: '🐢', text: 'Slow down and keep a longer distance'),
+          AskyTip(icon: '🚶', text: 'Wear bright clothing if walking near roads'),
+          AskyTip(icon: '🏃', text: 'Postpone outdoor exercise if you can'),
+          AskyTip(icon: '🕯️', text: 'Avoid unnecessary travel until it clears'),
+        ],
+      );
+    }
+
+    // Rule 2a-ii: Haze, smoke, dust, sand or ash in the air
+    if (WeatherClassifier.isHaze(input.conditionCode)) {
+      return const AskyResult(
+        primaryAdvice:
+            'Hazy air today. Limit time outdoors and protect your lungs.',
+        tips: [
+          AskyTip(icon: '😷', text: 'Wear a well-fitted N95 mask outdoors'),
+          AskyTip(icon: '🏃', text: 'Skip strenuous outdoor exercise'),
+          AskyTip(icon: '🏠', text: 'Keep windows closed; use an air purifier if you have one'),
+          AskyTip(icon: '👁️', text: 'Rinse irritated eyes with clean water'),
+          AskyTip(icon: '💧', text: 'Drink plenty of water'),
+        ],
+      );
+    }
+
+    // Rule 2a-iii: Mist
+    if (WeatherClassifier.isMist(input.conditionCode)) {
+      return const AskyResult(
+        primaryAdvice:
+            'Misty conditions with reduced visibility. Take care on the roads.',
+        tips: [
+          AskyTip(icon: '🚗', text: 'Use dipped headlights and slow down'),
+          AskyTip(icon: '👟', text: 'Surfaces may be damp and slippery'),
+          AskyTip(icon: '🧥', text: 'Carry a light jacket — mist feels cool and damp'),
+          AskyTip(icon: '📸', text: 'Misty mornings make great photos'),
+        ],
+      );
+    }
+
+    // Rule 2b: Snowy or other low-visibility conditions (600–781)
     if (input.conditionCode >= 600 && input.conditionCode <= 781) {
       return const AskyResult(
         primaryAdvice:
@@ -57,7 +171,7 @@ class AskyEngine {
           AskyTip(icon: '👟', text: 'Wear non-slip footwear outdoors'),
           AskyTip(icon: '🧥', text: 'Warm layers are essential'),
           AskyTip(icon: '☕', text: 'Hot beverages will keep you warm'),
-          AskyTip(icon: '🕯️', text: 'Avoid unnecessary travel in fog'),
+          AskyTip(icon: '🕯️', text: 'Avoid unnecessary travel in poor visibility'),
         ],
       );
     }
@@ -154,20 +268,25 @@ class AskyEngine {
     );
   }
 
-  static String _getTimeOfDay() {
-    final hour = DateTime.now().hour;
+  static String _timeOfDay(int hour) {
     if (hour >= 5 && hour < 12) return 'morning';
     if (hour >= 12 && hour < 17) return 'afternoon';
     if (hour >= 17 && hour < 20) return 'evening';
     return 'night';
   }
 
+  /// [localHour] is the current hour (0–23) *in the city being shown*. It
+  /// defaults to the phone's hour for callers that don't know the city.
   static WeatherInput buildInput({
     required int conditionCode,
     required double temperature,
     required double uvIndex,
     required int aqi,
     required int humidity,
+    double windKmh = 0,
+    bool isHail = false,
+    int visibilityMeters = 10000,
+    int? localHour,
   }) {
     return WeatherInput(
       conditionCode: conditionCode,
@@ -175,7 +294,10 @@ class AskyEngine {
       uvIndex: uvIndex,
       aqi: aqi,
       humidity: humidity,
-      timeOfDay: _getTimeOfDay(),
+      timeOfDay: _timeOfDay(localHour ?? DateTime.now().hour),
+      windKmh: windKmh,
+      isHail: isHail,
+      visibilityMeters: visibilityMeters,
     );
   }
 }

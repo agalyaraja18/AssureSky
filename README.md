@@ -1,7 +1,7 @@
 ﻿<p align="center">
   <h1 align="center">AssureSky ☁️</h1>
   <p align="center"><b>Know your day. Own your day.</b></p>
-  <p align="center">A smart weather & news app powered by Flutter.</p>
+  <p align="center">A weather app with AI Advice powered by Flutter.</p>
 </p>
 
 <p align="center">
@@ -17,13 +17,18 @@
 
 ## Features
 
-- **Real-time weather** — current conditions, hourly & 7-day forecast
-- **Air quality index** with health recommendations
-- **AI-powered daily advice** (AskY) based on current conditions
-- **Weather news** — latest headlines tailored to weather events
-- **Location-aware** — auto-detects your city or search any Indian city
-- **Animated backgrounds** that change with weather conditions
-- **Dark-first premium UI** built with Flutter
+- **Live weather** — temperature, weather conditions, humidity, wind, UV, visibility, auto pressure and AQI, with the date, day and time of your location
+- **Sunrise & sunset** times for your location
+- **Forecast** — 7-day forecast and 24-hour hourly weather breakdown
+- **Asky, your AI weather advisor** — a fluffy cloud mascot that gives advice tips for the weather of the day. It wakes up in the morning, sleeps at night and acts out the weather in between (umbrella in rain, kite in a breeze, sunglasses in the sun…)
+- **Official weather alerts** — warnings from India (IMD / NDMA), USA (NWS), Canada, Europe (MeteoAlarm) and worldwide disasters (GDACS), with safety tips. Alerts for your location also show on the home screen
+- **World weather map** — zoomable map with the temperature, weather icon and local time of cities everywhere; tap any spot to see its weather
+- **Weather news** — live, weather-only headlines from around the world, readable inside the app
+- **Any city worldwide** — GPS or search, with unit settings for temperature, wind and auto pressure
+- **Themes that change with the weather** — Sunny, Rainy, Snowy, Foggy, Hot, Cold, Thunderstorm, Cyclone and more, or pick your own
+- **Notifications** — daily forecast, Asky advice, weather alerts and weather news
+- **Offline cache** — shows the last loaded weather, forecast, news and alerts when there is no internet
+- **Animated weather backgrounds** that match the conditions
 
 ## Download
 
@@ -95,39 +100,50 @@ Every push to `main` will automatically:
 ```
 assuresky/
 ├── lib/
+│   ├── main.dart
 │   ├── core/
-│   │   ├── constants/     # API endpoints & keys (dart-define)
-│   │   ├── models/        # Shared data models
-│   │   ├── services/      # HTTP & location services
-│   │   ├── theme/         # App theme & colors
-│   │   ├── utils/         # Helpers & formatters
-│   │   └── widgets/       # Reusable UI components
+│   │   ├── constants/     # API endpoints & keys (dart-define), world map cities
+│   │   ├── models/        # Weather, forecast, UV, alert & map data models
+│   │   ├── services/      # Weather, news, location, notifications, offline cache
+│   │   │   └── alerts/    # Official alert providers (NDMA, NWS, ECCC, MeteoAlarm, GDACS)
+│   │   ├── theme/         # App themes & colors
+│   │   ├── utils/         # Helpers, formatters & weather news filter
+│   │   └── widgets/       # Asky mascot, weather icons & animated backgrounds
 │   └── features/
 │       ├── home/          # Main weather dashboard
-│       ├── forecast/      # 7-day forecast screen
-│       ├── asky/          # AI advice feature
+│       ├── forecast/      # 7-day & hourly forecast
+│       ├── asky/          # AI weather advisor tips
+│       ├── alerts/        # Official weather alerts
+│       ├── map/           # Zoomable world weather map
 │       ├── news/          # Weather news feed
-│       ├── settings/      # App settings
+│       ├── settings/      # Settings, location search & themes
 │       └── splash/        # Splash screen
 ├── android/               # Android native config
 ├── ios/                   # iOS native config
 ├── web/                   # Web entry point
+├── design/                # App icon source & generator script
+├── test/                  # Tests
+├── .github/workflows/     # GitHub Actions build & release
 └── assets/images/         # App assets
 ```
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Framework | Flutter 3.32 |
-| State Management | flutter_bloc |
-| HTTP | Dio |
-| Location | geolocator + geocoding |
-| Storage | shared_preferences |
-| Image Caching | cached_network_image |
-| In-app Browser | webview_flutter |
-| Weather Data | OpenWeatherMap API |
-| News Data | NewsAPI |
+| Technology | Purpose |
+|------------|---------|
+| Flutter | Mobile application development |
+| Dart | Frontend programming language |
+| OpenWeatherMap API | Weather information and forecasts |
+| NewsAPI | Trending news and articles |
+| Figma | UI/UX design and prototyping |
+| Open-Meteo API | UV index, 7-day forecast and weather for the world map |
+| Open-Meteo Geocoding API | Searching for any city worldwide |
+| NDMA SACHET (India) | Official Indian weather alerts from IMD and state authorities |
+| US National Weather Service API | Official US weather alerts |
+| Environment Canada | Official Canadian weather alerts |
+| MeteoAlarm | Official European weather warnings |
+| GDACS (UN / EU) | Worldwide cyclone, flood and drought alerts |
+| Esri map tiles | Map images for the world weather map |
 
 ## License
 

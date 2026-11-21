@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/services/asky_engine.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/weather_mascot.dart';
 import '../../home/bloc/home_bloc.dart';
 
 class AskyScreen extends StatelessWidget {
@@ -42,28 +43,11 @@ class _AskyView extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
-              // Header card with Asky mascot
-              Card(
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    children: [
-                      _AskyMascot(),
-                      const SizedBox(height: 16),
-                      Text(
-                        "Hello! I'm Asky",
-                        style: theme.textTheme.headlineMedium
-                            ?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        "I'm here to give you smart advice\nbased on the weather around you.",
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.bodyMedium,
-                      ),
-                    ],
-                  ),
+              // Header card: Asky waves hello, then points at the tips below
+              const Card(
+                child: Padding(
+                  padding: EdgeInsets.all(12),
+                  child: AskyGuideHeader(),
                 ),
               ),
               const SizedBox(height: 16),
@@ -133,26 +117,6 @@ class _AskyView extends StatelessWidget {
               const SizedBox(height: 24),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _AskyMascot extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 80,
-      height: 80,
-      decoration: BoxDecoration(
-        color: AppColors.accent.withValues(alpha: 0.15),
-        shape: BoxShape.circle,
-      ),
-      child: const Center(
-        child: Text(
-          '🌤️',
-          style: TextStyle(fontSize: 40),
         ),
       ),
     );

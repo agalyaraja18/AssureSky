@@ -20,7 +20,12 @@ class ForecastLoading extends ForecastState {}
 
 class ForecastLoaded extends ForecastState {
   final ForecastModel forecast;
-  ForecastLoaded(this.forecast);
+
+  /// True when the network failed and this is the last cached forecast.
+  final bool fromCache;
+  final DateTime? cachedAt;
+
+  ForecastLoaded(this.forecast, {this.fromCache = false, this.cachedAt});
 }
 
 class ForecastError extends ForecastState {
@@ -42,10 +47,12 @@ class ForecastBloc extends Bloc<ForecastEvent, ForecastState> {
       ForecastLoadRequested event, Emitter<ForecastState> emit) async {
     emit(ForecastLoading());
     try {
-      final forecast = await _repository.getForecast(event.lat, event.lon);
-      emit(ForecastLoaded(forecast));
+      final data = await _repository.getForecast(event.lat, event.lon);
+      emit(ForecastLoaded(data.forecast,
+          fromCache: data.fromCache, cachedAt: data.cachedAt));
     } catch (e) {
-      emit(ForecastError('Failed to load forecast data.'));
+      emit(ForecastError(
+          'Failed to load forecast data. Check your connection and try again.'));
     }
   }
 }

@@ -1,11 +1,13 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+﻿<manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Internet access -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <!-- Location permissions -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <!-- Weather alert / daily forecast notifications (runtime permission on Android 13+) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
-        android:label="assuresky"
+        android:label="AssureSky"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

@@ -14,7 +14,19 @@ class ThemeChanged extends ThemeEvent {
 
 class ThemeAutoDetected extends ThemeEvent {
   final int weatherCode;
-  ThemeAutoDetected(this.weatherCode);
+  final double windKmh;
+  final int visibilityMeters;
+  final bool isHail;
+  final double tempC;
+  final int humidity;
+  ThemeAutoDetected(
+    this.weatherCode, {
+    this.windKmh = 0,
+    this.visibilityMeters = 10000,
+    this.isHail = false,
+    this.tempC = 20,
+    this.humidity = 50,
+  });
 }
 
 class ThemeLoaded extends ThemeEvent {}
@@ -64,7 +76,14 @@ class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
         prefs.getBool(AppConstants.keyThemeManualOverride) ?? false;
     if (isManual) return; // Respect manual override
 
-    final themeName = AppTheme.themeFromConditionCode(event.weatherCode);
+    final themeName = AppTheme.themeFromConditionCode(
+      event.weatherCode,
+      windKmh: event.windKmh,
+      visibilityMeters: event.visibilityMeters,
+      isHail: event.isHail,
+      tempC: event.tempC,
+      humidity: event.humidity,
+    );
     await prefs.setString(AppConstants.keyThemeName, themeName);
     emit(ThemeState(
         themeData: AppTheme.fromName(themeName), themeName: themeName));

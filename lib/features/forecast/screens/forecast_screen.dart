@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../core/widgets/info_banner.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../../core/utils/unit_converter.dart';
-import '../../../core/utils/weather_icon_helper.dart';
+import '../../../core/widgets/weather_icon.dart';
 import '../../../core/services/weather_repository.dart';
 import '../../home/bloc/home_bloc.dart';
 import '../../settings/bloc/settings_bloc.dart';
@@ -24,15 +25,17 @@ class _ForecastScreenState extends State<ForecastScreen> {
   void initState() {
     super.initState();
     _forecastBloc = ForecastBloc(repository: WeatherRepository());
+
+    // Home may already be loaded by the time this tab is built.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _loadFor(context.read<HomeBloc>().state);
+    });
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final homeState = context.read<HomeBloc>().state;
+  void _loadFor(HomeState homeState) {
     if (homeState is HomeLoaded) {
-      _forecastBloc
-          .add(ForecastLoadRequested(homeState.lat, homeState.lon));
+      _forecastBloc.add(ForecastLoadRequested(homeState.lat, homeState.lon));
     }
   }
 
@@ -46,22 +49,30 @@ class _ForecastScreenState extends State<ForecastScreen> {
   Widget build(BuildContext context) {
     return BlocProvider.value(
       value: _forecastBloc,
-      child: BlocBuilder<HomeBloc, HomeState>(
-        builder: (context, homeState) {
-          final cityName =
-              homeState is HomeLoaded ? homeState.cityName : '';
-          return Scaffold(
-            body: SafeArea(
-              child: Column(
-                children: [
-                  _buildTopBar(context, cityName),
-                  _buildToggle(),
-                  Expanded(child: _buildContent()),
-                ],
+      // Reload whenever Home produces a new result: a different city, a GPS
+      // move or a pull-to-refresh. (The repository's short memo stops this
+      // from re-downloading the forecast Home has just fetched.)
+      child: BlocListener<HomeBloc, HomeState>(
+        listenWhen: (previous, current) =>
+            current is HomeLoaded && !identical(previous, current),
+        listener: (context, homeState) => _loadFor(homeState),
+        child: BlocBuilder<HomeBloc, HomeState>(
+          builder: (context, homeState) {
+            final cityName =
+                homeState is HomeLoaded ? homeState.cityName : '';
+            return Scaffold(
+              body: SafeArea(
+                child: Column(
+                  children: [
+                    _buildTopBar(context, cityName),
+                    _buildToggle(),
+                    Expanded(child: _buildContent()),
+                  ],
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
@@ -141,9 +152,19 @@ class _ForecastScreenState extends State<ForecastScreen> {
           );
         }
         if (state is ForecastLoaded) {
-          return _isWeekly
+          final view = _isWeekly
               ? _WeeklyView(forecast: state.forecast)
               : _HourlyView(forecast: state.forecast);
+          if (!state.fromCache) return view;
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                child: OfflineBanner(cachedAt: state.cachedAt),
+              ),
+              Expanded(child: view),
+            ],
+          );
         }
         return const SizedBox.shrink();
       },
@@ -216,10 +237,7 @@ class _WeeklyView extends StatelessWidget {
                                 ?.copyWith(fontWeight: FontWeight.w500),
                           ),
                         ),
-                        Text(
-                          WeatherIconHelper.emoji(day.conditionCode),
-                          style: const TextStyle(fontSize: 22),
-                        ),
+                        WeatherIcon(day.conditionCode, size: 22),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(day.condition,
@@ -355,10 +373,19 @@ class _HourlyView extends StatelessWidget {
       itemBuilder: (context, i) {
         final hour = hours[i];
         final uvLabel = UnitConverter.uvLabel(hour.uvIndex);
-        Color uvColor = AppColors.green;
-        if (uvLabel == 'Moderate') uvColor = Colors.orange;
-        if (uvLabel == 'High' || uvLabel == 'Very High') {
-          uvColor = AppColors.red;
+        // WHO UV scale colours: green → yellow-orange → orange → red → violet.
+        final Color uvColor;
+        switch (uvLabel) {
+          case 'Moderate':
+            uvColor = const Color(0xFFF9A825);
+          case 'High':
+            uvColor = Colors.deepOrange;
+          case 'Very High':
+            uvColor = AppColors.red;
+          case 'Extreme':
+            uvColor = const Color(0xFF8E24AA);
+          default:
+            uvColor = AppColors.green;
         }
 
         // Time label: "Now" for first entry, day name for next-day entries
@@ -389,36 +416,50 @@ class _HourlyView extends StatelessWidget {
                         ?.copyWith(fontWeight: FontWeight.w500),
                   ),
                 ),
-                Text(
-                  WeatherIconHelper.emoji(hour.conditionCode,
-                      isNight: isNight),
-                  style: const TextStyle(fontSize: 20),
-                ),
+                WeatherIcon(hour.conditionCode, size: 20, isNight: isNight),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(hour.condition,
                       style: theme.textTheme.bodyMedium),
                 ),
-                Text(
-                  UnitConverter.formatTemp(
-                      hour.temp, settings.tempUnit),
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: uvColor.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
+                // Fixed-width, right-aligned temperature column so every row's
+                // temperature lines up regardless of digits or °C/°F.
+                SizedBox(
+                  width: 56,
                   child: Text(
-                    'UV $uvLabel',
-                    style: TextStyle(
-                        color: uvColor,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600),
+                    UnitConverter.formatTemp(hour.temp, settings.tempUnit),
+                    textAlign: TextAlign.right,
+                    maxLines: 1,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                // Fixed-width UV badge so "UV Low" and "UV Very High" occupy
+                // the same slot and never push the temperature around.
+                SizedBox(
+                  width: 92,
+                  child: Container(
+                    alignment: Alignment.center,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 6, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: uvColor.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        'UV $uvLabel',
+                        maxLines: 1,
+                        style: TextStyle(
+                            color: uvColor,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600),
+                      ),
+                    ),
                   ),
                 ),
               ],

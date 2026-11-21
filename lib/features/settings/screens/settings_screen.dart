@@ -114,12 +114,12 @@ class SettingsScreen extends StatelessWidget {
                   child: Column(
                     children: [
                       _NotifTile(
-                        icon: '🔔',
-                        label: 'Weather Alerts',
-                        value: settings.notifWeatherAlerts,
+                        icon: '📅',
+                        label: 'Daily Forecast',
+                        value: settings.notifDailyForecast,
                         onChanged: (v) => context.read<SettingsBloc>().add(
                             NotificationToggled(
-                                AppConstants.keyNotifWeatherAlerts, v)),
+                                AppConstants.keyNotifDailyForecast, v)),
                       ),
                       _Divider(),
                       _NotifTile(
@@ -132,21 +132,21 @@ class SettingsScreen extends StatelessWidget {
                       ),
                       _Divider(),
                       _NotifTile(
+                        icon: '🔔',
+                        label: 'Weather Alerts',
+                        value: settings.notifWeatherAlerts,
+                        onChanged: (v) => context.read<SettingsBloc>().add(
+                            NotificationToggled(
+                                AppConstants.keyNotifWeatherAlerts, v)),
+                      ),
+                      _Divider(),
+                      _NotifTile(
                         icon: '📰',
                         label: 'Weather Trending News',
                         value: settings.notifTrendingNews,
                         onChanged: (v) => context.read<SettingsBloc>().add(
                             NotificationToggled(
                                 AppConstants.keyNotifTrendingNews, v)),
-                      ),
-                      _Divider(),
-                      _NotifTile(
-                        icon: '📅',
-                        label: 'Daily Forecast',
-                        value: settings.notifDailyForecast,
-                        onChanged: (v) => context.read<SettingsBloc>().add(
-                            NotificationToggled(
-                                AppConstants.keyNotifDailyForecast, v)),
                       ),
                     ],
                   ),

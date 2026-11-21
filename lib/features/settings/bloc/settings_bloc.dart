@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/services/notification_service.dart';
 
 // Events
 abstract class SettingsEvent {}
@@ -158,6 +160,9 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
       NotificationToggled event, Emitter<SettingsState> emit) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(event.key, event.value);
+    // Turning a notification type on is the moment to make sure the OS will
+    // actually let us show it.
+    if (event.value) unawaited(NotificationService.requestPermission());
     switch (event.key) {
       case AppConstants.keyNotifWeatherAlerts:
         emit(state.copyWith(notifWeatherAlerts: event.value));
