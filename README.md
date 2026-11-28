@@ -133,6 +133,7 @@ assuresky/
 |------------|---------|
 | Flutter | Mobile application development |
 | Dart | Frontend programming language |
+| Rule-Based AI | Generates personalized weather advice and safety tips using weather conditions and predefined rules |
 | OpenWeatherMap API | Weather information and forecasts |
 | NewsAPI | Trending news and articles |
 | Figma | UI/UX design and prototyping |
